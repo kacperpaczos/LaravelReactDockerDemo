@@ -1,0 +1,32 @@
+FROM php:8.2-fpm
+
+# Instalacja niezbędnych pakietów
+RUN apt update && apt install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libzip-dev
+RUN apt clean && rm -rf /var/lib/apt/lists/*
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+ARG user
+ARG uid
+# Dodanie użytkownika, jeśli nie istnieje
+RUN id -u $user &>/dev/null || useradd -G www-data,root -u $uid -d /home/$user $user
+RUN mkdir -p /home/$user/.composer && \
+    chown -R $user:$user /home/$user
+
+
+#WORKDIR /var/www
+
+# Kopiowanie plików
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Ustawienie punktu wejścia
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["php-fpm"]

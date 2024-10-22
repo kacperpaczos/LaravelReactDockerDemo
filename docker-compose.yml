@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # Kontener dla aplikacji Node.js (React + Vite)
+  react:
+    build:
+      context: ./react
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./react:/app:rw
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    networks:
+      - dev_network
+    depends_on:
+      - postgres_db
+    container_name: react
+  # Kontener dla aplikacji PHP (PHP-FPM)
+  php_fpm:
+    build:
+      args:
+        user: www-data
+        uid: 1000
+      context: ./php
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./php:/var/www/html:ro
+      - ./php/storage:/var/www/html/storage:rw
+    networks:
+      - dev_network
+    depends_on:
+      - postgres_db
+    container_name: php_fpm
+    expose:
+      - 9000
+
+  # Kontener dla Nginx jako reverse proxy
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./docker-compose/nginx:/etc/nginx/conf.d
+    ports:
+      - "88:80"
+    depends_on:
+      - php_fpm
+      - react
+    networks:
+      - dev_network
+    container_name: nginx
+  # Kontener dla bazy danych Postgres
+  postgres_db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: my_database
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - dev_network
+    container_name: postgres_db
+# Definiowanie sieci
+networks:
+  dev_network:
+    driver: bridge
+
+# Definiowanie wolumenów dla trwałego przechowywania danych bazy danych
+volumes:
+  postgres_data:
